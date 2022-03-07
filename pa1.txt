@@ -1,0 +1,136 @@
+.section .data
+
+input_prompt    :   .asciz  "Input a string: "
+#brackets = until new line, takes in string of any until new line.
+input_spec      :   .asciz  "%[^\n]"
+length_spec     :   .asciz  "String length: %d\n"
+palindrome_spec :   .asciz  "String is a palindrome (T/F): %s\n"
+
+true_spec       :   .asciz  "T"
+false_spec      :   .asciz  "F"
+
+input_string    :   .space 8
+
+.section .text
+
+.global main
+
+# program execution begins here
+main:
+#one.       start main set-up
+    ldr x0, =input_prompt
+    bl printf
+
+    #takes in input
+    #ldr x0, =input_spec what is input_spec for? x1 address
+    ldr x0, =input_spec
+    ldr x1, =input_string
+    bl scanf
+
+#two.       start string length calculation
+    ldr x9, =input_string
+    ldrb w0, [x9]
+
+    #copy over string input in x9 to x19.
+    mov x19, x9
+    #set x20 to 0, x20 will serve as counter.
+    mov x20, 0
+    #set x21 to 1, x21 will serve as iterator.
+    mov x21, 0
+
+    bl size
+
+    #print out length output and calculated length
+    ldr x0, =length_spec
+    mov x1, x20
+    bl printf
+
+#three.     start palindrome calculation
+    #set x22 as lower increment at 0.
+    mov x22, 0
+    #set x23 as higher decrement at string length - 1.
+    mov x23, x20
+    sub x23, x23, 1
+
+    #load up forloop index conditional into x24 = string.length/2
+    mov x11, 2
+    mov x24, x20
+    sdiv x24, x24, x11
+
+    #create true(1)/false(0) variable. default is true.
+    mov x25, 1
+
+    bl palindrome
+
+    #if string is pali, then print T, else F.
+    cmp x25, 1
+    b.eq printtrue
+
+    bl printfalse
+
+    b exit
+
+# add code and other labels here
+
+size:
+    #load up the i-th character with x21 iterator of string input in x19 into w10.
+    ldrb w10, [x19, x21]
+    #is character in x10 a null value /0?
+    cmp w10, 0
+    #if, so exit method. return to l41
+    b.ne else
+    br x30
+
+    else:
+    #increment counter and iterator.
+    add x20, x20, 1
+    add x21, x21, 1
+    b size
+
+
+palindrome:
+    #decrement index conditional
+    sub x24, x24, 1
+
+    #load up lower increment index
+    ldrb w12, [x19, x22]
+    #load up higher decrement index
+    ldrb w13, [x19, x23]
+
+    cmp w12, w13
+    b.ne orelse
+
+    #if equal then, increment/decrement:
+    add x22, x22, 1
+    sub x23, x23, 1
+
+    #check if iterator x24 is less than 0.
+    cmp x24, 0
+    b.ge palindrome
+    #if it is -1, branch out.
+    br x30
+
+    orelse:
+    #if cmp is not equal, change x25 bool to 0, false.
+    mov x25, 0
+    br x30
+
+printtrue:
+    ldr x0, =palindrome_spec
+    ldr x1, =true_spec
+    bl printf
+    b exit
+
+printfalse:
+    ldr x0, =palindrome_spec
+    ldr x1, =false_spec
+    bl printf
+    b exit
+
+# branch to this label on program completion
+exit:
+    mov x0, 0
+    mov x8, 93
+    svc 0
+    ret
+    

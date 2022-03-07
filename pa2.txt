@@ -1,0 +1,127 @@
+.section .data
+
+input_x_prompt    :    .asciz    "Please enter x: "
+input_y_prompt    :    .asciz    "Please enter y: "
+input_spec        :    .asciz    "%d"
+result            :    .asciz    "x^y = %d\n"
+
+.section .text
+
+.global main
+#CITATION - referenced code structure from files: factv2.s, math.s, add.s, add_v2.s
+
+main:
+    #ask for x input.
+    ldr x0, =input_x_prompt
+    bl printf
+    bl read_input
+    #store x input into x19.
+    mov x19, x0
+
+    #ask for y input.
+    ldr x0, =input_y_prompt
+    bl printf
+    bl read_input
+    #store y input into x20.
+    mov x20, x0
+
+    #move x and y values into argument registers x0 and x1 for exponent function.
+    mov x0, x19
+    mov x1, x20
+    #STACK FRAME CREATION: set x30 onto stack before going into exponent.
+    sub sp, sp, 8
+    str x30, [sp]
+
+    bl exponent
+
+    #final stretch: print result of exponents.
+    ldr x0, =result
+    bl printf
+
+    #STACK FRAME DEALLOCATION: for previous x30 register.
+    add sp, sp, 8
+    b exit
+
+read_input:
+    #STACK FRAME CREATION: space on stack for x30.
+    sub sp, sp, 8
+    str x30, [sp]
+
+    ldr x0, =input_spec
+    #STACK FRAME CREATION: space on stack for input value.
+    sub sp, sp, 8
+    mov x1, sp
+    bl scanf
+
+    #use sign extend to take in value into x0.
+    ldrsw x0, [sp]
+    ldr x30, [sp, 8]
+    #STACK FRAME DEALLOCATION: for previous x30 and input value.
+    add sp, sp, 16
+    br x30
+
+exponent:
+    #STACK FRAME CREATION: space on stack for return address and argument.
+    sub sp, sp, 24
+    #copy x30 into x9.
+    mov x9, x30
+    #for x9 return address into the stack.
+    str x9, [sp, 16]
+    #for x and y values into the stack.
+    str x1, [sp, 8]
+    str x0, [sp]
+
+    #do conditional branches:
+    #i. if y-value = 0, return 1.
+    cbz x1, branch_one
+    #ii. if x-value = 0, return 0.
+    cbz x0, branch_zero
+    #iii. if y-value < 0, return 1.
+    cmp x1, 0
+    b.lt branch_zero
+    #iv. else, continue to recurse branch.
+    bl recurse
+
+    mov x1, 1
+    #STACK FRAME DEALLOCATION: for previous x9, x1, x0
+    add sp, sp, 24
+    #branch back out to x30 in main.
+    br x30
+
+recurse:
+    #set up exponent(x, y-1) for later recursive call.
+    sub x1, x1, 1
+    bl exponent
+
+    #restore stack for x value and x9.
+    ldr x0, [sp]
+    ldr x9, [sp, 16]
+    #drag the x30 address contained in x9 into this x30.
+    mov x30, x9
+    #deallocate stack.
+    add sp, sp, 24
+
+    #call recursive power function, x * exponent(x, y-1) and store result in x1.
+    mul x1, x0, x1
+
+    #branch out.
+    br x30
+
+branch_zero:
+    mov x1, 0
+    str x1, [sp]
+    #branch back out to x30 in main.
+    br x30
+
+branch_one:
+    mov x1, 1
+    str x1, [sp]
+    #branch back out to x30 in main.
+    br x30
+
+# branch to this label on program completion
+exit:
+    mov x0, 0
+    mov x8, 93
+    svc 0
+    ret
